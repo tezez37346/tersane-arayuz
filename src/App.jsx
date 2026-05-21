@@ -99,11 +99,12 @@ export default function App() {
 </div>
 
               <select style={select}>
-                <option>Dengeli Amaç Fonksiyonu</option>
-                <option>Cmax Öncelikli</option>
-                <option>Ergonomi Öncelikli</option>
-                <option>Sertifika Öncelikli</option>
-              </select>
+  <option>Dengeli Amaç Fonksiyonu</option>
+  <option>Cmax Öncelikli</option>
+  <option>Ergonomi Öncelikli</option>
+  <option>Sertifika Öncelikli</option>
+  <option>İş Yükü Dengesi Öncelikli</option>
+</select>
 
               <button style={runBtn} onClick={runOptimization}>
                 {loading ? "Model Çalışıyor..." : "Analiz Çalıştır"}
@@ -118,12 +119,88 @@ export default function App() {
             </div>
 
             <section style={panel}>
-              <h2>Arayüz Amacı</h2>
-              <p>
-                Bu karar destek sistemi, tersane üretim sürecinde blok bazlı iş adımları için uygun işçilerin
-                atanmasını, işlem sıralarının korunmasını ve süre çakışmalarının önlenmesini amaçlamaktadır.
-              </p>
-            </section>
+  <h2>Arayüz Amacı</h2>
+
+  <p>
+    Bu karar destek sistemi, tersane üretim sürecinde blok bazlı iş adımları için uygun işçilerin atanmasını, işlem sıralarının korunmasını ve süre çakışmalarının önlenmesini amaçlamaktadır.
+  </p>
+
+{!result ? (
+  <div style={emptyDashboard}>
+    Analiz çalıştırıldığında grafikler otomatik olarak oluşturulacaktır.
+  </div>
+) : (
+  <div style={dashboardGrid}>
+    
+    <div style={chartCard}>
+      <h3>İş Adımlarına Göre Kapasite Dağılımı</h3>
+
+      <div style={barRow}>
+        <span>CNC</span>
+        <div style={barBg}>
+          <div style={{...barFill,  width: result ? "18%":"0%"}} />
+        </div>
+        <b>1</b>
+      </div>
+
+      <div style={barRow}>
+        <span>Montaj</span>
+        <div style={barBg}>
+          <div style={{...barFill,  width: result ? "85%":"0%"}} />
+        </div>
+        <b>5-6</b>
+      </div>
+
+      <div style={barRow}>
+        <span>Kaynak</span>
+        <div style={barBg}>
+          <div style={{...barFill, width: result ? "100%":"0%"}} />
+        </div>
+        <b>6</b>
+      </div>
+
+      <div style={barRow}>
+        <span>Donatım</span>
+        <div style={barBg}>
+          <div style={{...barFill, width: result ? "65%":"0%"}} />
+        </div>
+        <b>4</b>
+      </div>
+
+    </div>
+
+    <div style={chartCard}>
+      <h3>Ergonomik Risk Dağılımı</h3>
+
+      <div style={riskBars}>
+        <div style={{...riskBar, height:"45%"}}>8</div>
+        <div style={{...riskBar, height:"60%"}}>12</div>
+        <div style={{...riskBar, height:"75%"}}>15</div>
+        <div style={{...riskBar, height:"90%"}}>20</div>
+      </div>
+
+      <p style={smallText}>
+        İş adımlarına göre ER/ERT seviyeleri
+      </p>
+    </div>
+
+    <div style={chartCard}>
+      <h3>Modelin Değerlendirdiği Kriterler</h3>
+
+      <div style={tagArea}>
+        <span style={tag}>Süre</span>
+        <span style={tag}>Sertifika</span>
+        <span style={tag}>Ergonomi</span>
+        <span style={tag}>Yorgunluk</span>
+        <span style={tag}>Tercih</span>
+        <span style={tag}>İş Yükü Dengesi</span>
+        <span style={tag}>Tekrar Atama</span>
+      </div>
+    </div>
+
+  </div>
+  )}
+</section>
           </>
         )}
 
@@ -264,4 +341,90 @@ const card = { background: "white", padding: 22, borderRadius: 15, boxShadow: "0
 const panel = { background: "white", borderRadius: 15, padding: 25, boxShadow: "0 2px 8px rgba(0,0,0,.08)", marginBottom: 20 };
 const table = { width: "100%", borderCollapse: "collapse", marginTop: 15 };
 const th = { padding: 12, border: "1px solid #e2e8f0", background: "#f1f5f9" };
-const td = { padding: 12, border: "1px solid #e2e8f0", textAlign: "center" };
+const td = {
+  padding: 12,
+  border: "1px solid #e2e8f0",
+  textAlign: "center"
+};
+
+const dashboardGrid = {
+  display: "grid",
+  gridTemplateColumns: "1fr 1fr 1fr",
+  gap: "18px",
+  marginTop: "22px"
+};
+
+const chartCard = {
+  background: "#fff",
+  borderRadius: "16px",
+  padding: "22px",
+  boxShadow: "0 8px 24px rgba(15, 23, 42, 0.08)",
+  border: "1px solid #e5e7eb"
+};
+
+const barRow = {
+  display: "grid",
+  gridTemplateColumns: "95px 1fr 35px",
+  alignItems: "center",
+  gap: "10px",
+  marginBottom: "12px",
+  fontSize: "14px"
+};
+
+const barBg = {
+  height: "12px",
+  background: "#e5e7eb",
+  borderRadius: "999px",
+  overflow: "hidden"
+};
+
+const barFill = {
+  height: "100%",
+  background: "#0f766e",
+  borderRadius: "999px",
+  transition: "width 1.2s ease"
+};
+
+const riskBars = {
+  height: "150px",
+  display: "flex",
+  alignItems: "end",
+  justifyContent: "space-around",
+  gap: "14px",
+  marginTop: "20px"
+};
+
+const riskBar = {
+  width: "45px",
+  background: "#2563eb",
+  color: "white",
+  borderRadius: "10px 10px 0 0",
+  display: "flex",
+  alignItems: "start",
+  justifyContent: "center",
+  paddingTop: "8px",
+  fontWeight: "bold"
+};
+
+const smallText = {
+  textAlign: "center",
+  color: "#64748b",
+  fontSize: "13px",
+  marginTop: "14px"
+};
+
+const tagArea = {
+  display: "flex",
+  flexWrap: "wrap",
+  gap: "10px",
+  marginTop: "18px"
+};
+
+const tag = {
+  background: "#ecfdf5",
+  color: "#047857",
+  padding: "9px 12px",
+  borderRadius: "999px",
+  fontSize: "13px",
+  fontWeight: "600"
+};
