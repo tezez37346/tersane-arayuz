@@ -20,11 +20,14 @@ export default function App() {
   const [result, setResult] = useState(null);
   const [loading, setLoading] = useState(false);
   const [selectedBlock, setSelectedBlock] = useState("Tümü");
+  const [blockCount, setBlockCount] = useState(3);
 
   const runOptimization = async () => {
     setLoading(true);
     try {
-      const response = await fetch("https://tersane-arayuz.onrender.com/solve?block_count=35");
+      const response = await fetch(
+  `https://tersane-arayuz.onrender.com/solve?block_count=${blockCount}`
+)
       const data = await response.json();
       setResult(data);
       setActivePage("Atama Analizi");
@@ -71,10 +74,29 @@ export default function App() {
         {activePage === "Ana Sayfa" && (
           <>
             <div style={filters}>
-              <select style={select}>
-                <option>Yeni Gemi - 3 Blok Test</option>
-                <option>Yeni Gemi - 35 Blok</option>
-              </select>
+              <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
+
+  <input
+    type="number"
+    min="1"
+    max="35"
+    value={blockCount}
+    onChange={(e) => setBlockCount(e.target.value)}
+    placeholder="Blok sayısı giriniz"
+    style={{
+      padding: "14px",
+      borderRadius: "10px",
+      border: "1px solid #cbd5e1",
+      fontSize: "15px",
+      width: "230px"
+    }}
+  />
+
+  <span style={{ fontSize: "13px", color: "#64748b" }}>
+    Gemi blok sayısı (1-35)
+  </span>
+
+</div>
 
               <select style={select}>
                 <option>Dengeli Amaç Fonksiyonu</option>
