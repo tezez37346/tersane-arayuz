@@ -24,7 +24,7 @@ export default function App() {
   const runOptimization = async () => {
     setLoading(true);
     try {
-      const response = await fetch("http://127.0.0.1:8000/solve?block_count=35");
+      const response = await fetch("https://tersane-arayuz.onrender.com/solve?block_count=35");
       const data = await response.json();
       setResult(data);
       setActivePage("Atama Analizi");
