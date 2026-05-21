@@ -1,11 +1,27 @@
 import React, { useMemo, useState } from "react";
 
+const jobs = [
+  { id: 1, name: "CNC Ön İmalat" },
+  { id: 2, name: "CNC Panel" },
+  { id: 3, name: "Ön İmalat Montaj" },
+  { id: 4, name: "Ön İmalat Kaynak" },
+  { id: 5, name: "Panel Montaj" },
+  { id: 6, name: "Panel Kaynak" },
+  { id: 7, name: "Blok İmalat Montaj" },
+  { id: 8, name: "Blok İmalat Kaynak" },
+  { id: 9, name: "Ön Donatım" },
+  { id: 10, name: "Erection" },
+  { id: 11, name: "Boya" }
+];
+
 export default function App() {
   const [activePage, setActivePage] = useState("Ana Sayfa");
   const [result, setResult] = useState(null);
   const [loading, setLoading] = useState(false);
   const [selectedBlock, setSelectedBlock] = useState("Tümü");
   const [blockCount, setBlockCount] = useState(3);
+  const [selectedJob, setSelectedJob] = useState(6);
+  const [priorityType, setPriorityType] = useState("Dengeli Amaç Fonksiyonu");
 
   const dashboard = result?.dashboard;
   const candidates = dashboard?.candidate_workers || [];
@@ -15,8 +31,9 @@ export default function App() {
     setLoading(true);
     try {
       const response = await fetch(
-        `https://tersane-arayuz.onrender.com/solve?block_count=${blockCount}`
+        `https://tersane-arayuz.onrender.com/solve?block_count=${blockCount}&job_id=${selectedJob}&priority=${encodeURIComponent(priorityType)}`
       );
+
       const data = await response.json();
       setResult(data);
       setActivePage("Ana Sayfa");
@@ -50,6 +67,7 @@ export default function App() {
         <div style={sideInfo}>
           <h3>Model Bilgileri</h3>
           <p>Blok Sayısı: {result ? result.block_count : blockCount}</p>
+          <p>Seçilen İş: {jobs.find((j) => j.id === Number(selectedJob))?.name}</p>
           <p>İş Adımı Sayısı: 11</p>
           <p>İşçi Sayısı: 51</p>
           <p>Sertifika Türü: 15</p>
@@ -89,8 +107,27 @@ export default function App() {
               </div>
 
               <div>
+                <label style={label}>İş Adımı</label>
+                <select
+                  style={select}
+                  value={selectedJob}
+                  onChange={(e) => setSelectedJob(Number(e.target.value))}
+                >
+                  {jobs.map((job) => (
+                    <option key={job.id} value={job.id}>
+                      {job.id} - {job.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
                 <label style={label}>Öncelik Yapısı</label>
-                <select style={select}>
+                <select
+                  style={select}
+                  value={priorityType}
+                  onChange={(e) => setPriorityType(e.target.value)}
+                >
                   <option>Dengeli Amaç Fonksiyonu</option>
                   <option>Temin Süresi Öncelikli</option>
                   <option>Ergonomi Öncelikli</option>
@@ -274,23 +311,10 @@ export default function App() {
                 <Metric title="Çözüm Durumu" value={result.status} />
                 <Metric title="Blok Sayısı" value={result.block_count} />
                 <Metric
-  title="Temin Süresi"
-  value={
-    result && (
-      result.cmax ||
-      result.total_completion_time ||
-      result.temin_suresi
-    )
-      ? String(
-          result.cmax ||
-          result.total_completion_time ||
-          result.temin_suresi
-        )
-      : "-"
-  }
-  note="Toplam tamamlanma süresi"
-
-/>
+                  title="Temin Süresi"
+                  value={result?.cmax !== undefined && result?.cmax !== null ? String(result.cmax) : "-"}
+                  note="Toplam tamamlanma süresi"
+                />
                 <Metric title="Amaç Değeri" value={result.objective} />
               </div>
             )}
@@ -363,7 +387,7 @@ const activeBtn = { ...menuBtn, background: "#0d63b8", fontWeight: "bold" };
 const sideInfo = { marginTop: 55, lineHeight: 1.7, fontSize: 14 };
 const filters = {
   display: "grid",
-  gridTemplateColumns: "1fr 1fr 220px",
+  gridTemplateColumns: "0.8fr 1.2fr 1.2fr 220px",
   gap: 22,
   background: "white",
   padding: 18,

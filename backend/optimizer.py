@@ -13,7 +13,7 @@ def read_matrix(filename):
     return df.fillna(0).values.tolist()
 
 
-def solve_shipyard_model(block_count: int = 35):
+def solve_shipyard_model(block_count: int = 35, priority="Dengeli Amaç Fonksiyonu", job_id: int = 6):
     Dur = read_matrix("dur.xlsx")
     Cost = read_matrix("cost.xlsx")
     SkillOK = read_matrix("skillok.xlsx")
@@ -154,12 +154,63 @@ def solve_shipyard_model(block_count: int = 35):
         Z_cert = quicksum(qcert[k, j] for k, j in qcert)
         Z_repeat = quicksum(repeat_penalty[k, j] for k, j in repeat_penalty)
 
+        
+
+                # =====================================================
+        # ÖNCELİK TİPİNE GÖRE AĞIRLIK DEĞİŞİMİ
+        # =====================================================
+
+        if priority == "Temin Süresi Öncelikli":
+
+            w_cmax = 1.20
+            w_pref = 0.05
+            w_er = 0.05
+            w_cert = 2.00
+            w_repeat = 0.50
+
+        elif priority == "Ergonomi Öncelikli":
+
+            w_cmax = 0.20
+            w_pref = 0.05
+            w_er = 1.20
+            w_cert = 2.00
+            w_repeat = 0.50
+
+        elif priority == "Sertifika Öncelikli":
+
+            w_cmax = 0.20
+            w_pref = 0.05
+            w_er = 0.10
+            w_cert = 12.00
+            w_repeat = 0.50
+
+        elif priority == "İş Yükü Dengesi Öncelikli":
+
+            w_cmax = 0.25
+            w_pref = 0.05
+            w_er = 0.15
+            w_cert = 2.00
+            w_repeat = 8.00
+
+        else:
+
+            # Dengeli yapı
+            w_cmax = 0.55
+            w_pref = 0.20
+            w_er = 0.20
+            w_cert = 5.00
+            w_repeat = 2.00
+
+        # =====================================================
+        # AMAÇ FONKSİYONU
+        # =====================================================
+
         m.setObjective(
-            0.55 * Cmax
-            + 0.20 * Z_pref
-            + 0.20 * Z_er
-            + 5.00 * Z_cert
-            + 2.00 * Z_repeat,
+            w_cmax * Cmax
+            + w_pref * Z_pref
+            + w_er * Z_er
+            + w_cert * Z_cert
+            + w_repeat * Z_repeat,
             GRB.MINIMIZE
         )
 
@@ -200,7 +251,7 @@ def solve_shipyard_model(block_count: int = 35):
 
         total_obj += m.ObjVal
 
-    selected_job = 6
+    selected_job = job_id
     candidate_workers = []
 
     for k in Workers:
@@ -213,12 +264,24 @@ def solve_shipyard_model(block_count: int = 35):
 
             repeat_label = "Düşük" if repeat_count <= 1 else "Orta" if repeat_count <= 2 else "Yüksek"
 
+
+            if priority == "Temin Süresi Öncelikli":
+                a, b, c, d, e = 0.50, 0.15, 0.10, 0.15, 0.10
+            elif priority == "Ergonomi Öncelikli":
+                a, b, c, d, e = 0.15, 0.15, 0.10, 0.50, 0.10
+            elif priority == "Sertifika Öncelikli":
+                a, b, c, d, e = 0.15, 0.50, 0.10, 0.15, 0.10
+            elif priority == "İş Yükü Dengesi Öncelikli":
+                a, b, c, d, e = 0.15, 0.15, 0.45, 0.15, 0.10
+            else:
+                a, b, c, d, e = 0.30, 0.25, 0.15, 0.20, 0.10
+
             score = (
-                0.30 * (cert / 100)
-                + 0.25 * (1 / max(duration, 1))
-                + 0.20 * (1 / max(cost, 1))
-                + 0.15 * (1 - ert / 100)
-                + 0.10 * (1 / (repeat_count + 1))
+                a * (1 / max(duration, 1))
+                + b * (cert / 100)
+                + c * (1 / max(cost, 1))
+                + d * (1 - ert / 100)
+                + e * (1 / (repeat_count + 1))
             )
 
             candidate_workers.append({
