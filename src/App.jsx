@@ -273,7 +273,24 @@ export default function App() {
               <div style={metricGrid}>
                 <Metric title="Çözüm Durumu" value={result.status} />
                 <Metric title="Blok Sayısı" value={result.block_count} />
-                <Metric title="Temin Süresi" value={result.temin_süresi} />
+                <Metric
+  title="Temin Süresi"
+  value={
+    result && (
+      result.cmax ||
+      result.total_completion_time ||
+      result.temin_suresi
+    )
+      ? String(
+          result.cmax ||
+          result.total_completion_time ||
+          result.temin_suresi
+        )
+      : "-"
+  }
+  note="Toplam tamamlanma süresi"
+
+/>
                 <Metric title="Amaç Değeri" value={result.objective} />
               </div>
             )}
