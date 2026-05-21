@@ -2,7 +2,6 @@ import os
 import pandas as pd
 from gurobipy import Model, GRB, quicksum
 
-
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 
 
@@ -57,6 +56,8 @@ def solve_shipyard_model(block_count: int = 35):
     M = 10000
 
     last_worker_finish = {k: 0 for k in Workers}
+    last_worker_job = {k: None for k in Workers}
+    used_worker_job = {(k, j): 0 for k in Workers for j in Jobs}
     last_station_finish = {j: 0 for j in Jobs}
 
     all_assignments = []
@@ -86,27 +87,40 @@ def solve_shipyard_model(block_count: int = 35):
             for k, j in x
         }
 
+        repeat_penalty = {
+            (k, j): m.addVar(vtype=GRB.BINARY, name=f"repeat_{k}_{j}")
+            for k, j in x
+        }
+
         S = m.addVars(Jobs, lb=0, name="S")
         B = m.addVars(Jobs, lb=0, name="B")
         Tact = m.addVars(Jobs, lb=0, name="Tact")
         Cmax = m.addVar(lb=0, name="Cmax")
 
-        # Her iş kapasitesi kadar işçi alır
         for j in Jobs:
             m.addConstr(quicksum(x[k, j] for k in Workers if (k, j) in x) == Cap[j])
 
-        # Her işçi blok içinde tam 1 işe atanır
         for k in Workers:
             m.addConstr(quicksum(x[k, j] for j in Jobs if (k, j) in x) == 1)
 
-        # Sertifika cezası
+        # Aynı işçi aynı işi ardışık bloklarda tekrar almasın.
+        # Eğer çok dar uygunluk varsa model infeasible olmasın diye ceza ile desteklenir.
+        for k, j in x:
+            if last_worker_job[k] == j:
+                m.addConstr(x[k, j] <= 0)
+
         for k, j in x:
             skill_ok = int(SkillOK[k - 1][j - 1])
             m.addConstr(qcert[k, j] >= x[k, j] - skill_ok)
             m.addConstr(qcert[k, j] <= x[k, j])
             m.addConstr(qcert[k, j] <= 1 - skill_ok)
 
-        # Atanmış işçilerin ortalama süresi
+        for k, j in x:
+            if used_worker_job[k, j] > 0:
+                m.addConstr(repeat_penalty[k, j] >= x[k, j])
+            else:
+                m.addConstr(repeat_penalty[k, j] == 0)
+
         for j in Jobs:
             m.addConstr(
                 Tact[j] ==
@@ -114,20 +128,14 @@ def solve_shipyard_model(block_count: int = 35):
             )
             m.addConstr(B[j] == S[j] + Tact[j])
 
-        # Blok içi öncelik
         for pre, suc in PR:
             m.addConstr(S[suc] >= B[pre])
 
-        # İşçi çakışması: işçi önceki bloktaki işi bitmeden yeni işe başlayamaz
         for k, j in x:
             m.addConstr(S[j] >= last_worker_finish[k] - M * (1 - x[k, j]))
 
-        # CNC kısıtı: yeni blok CNC Ön İmalat, önceki bloğun CNC Panel bitişinden sonra başlar
         if block >= 2:
             m.addConstr(S[1] >= last_station_finish[2])
-
-        # OPL'deki bloklar arası pipeline / istasyon akışı
-        if block >= 2:
             m.addConstr(S[2] >= last_station_finish[3])
             m.addConstr(S[3] >= last_station_finish[4])
             m.addConstr(S[4] >= last_station_finish[5])
@@ -144,9 +152,14 @@ def solve_shipyard_model(block_count: int = 35):
         Z_pref = quicksum(Cost[k - 1][j - 1] * x[k, j] for k, j in x)
         Z_er = quicksum(ER[j] * x[k, j] for k, j in x)
         Z_cert = quicksum(qcert[k, j] for k, j in qcert)
+        Z_repeat = quicksum(repeat_penalty[k, j] for k, j in repeat_penalty)
 
         m.setObjective(
-            0.55 * Cmax + 0.20 * Z_pref + 0.20 * Z_er + 100 * 0.05 * Z_cert,
+            0.55 * Cmax
+            + 0.20 * Z_pref
+            + 0.20 * Z_er
+            + 5.00 * Z_cert
+            + 2.00 * Z_repeat,
             GRB.MINIMIZE
         )
 
@@ -167,9 +180,12 @@ def solve_shipyard_model(block_count: int = 35):
                 if (k, j) in x and x[k, j].X > 0.5:
                     selected.append(f"W{k}")
                     last_worker_finish[k] = B[j].X
+                    last_worker_job[k] = j
+                    used_worker_job[k, j] += 1
 
             all_assignments.append({
                 "block": block,
+                "job_id": j,
                 "job": job_names[j],
                 "workers": selected,
                 "worker_count": len(selected),
@@ -184,11 +200,64 @@ def solve_shipyard_model(block_count: int = 35):
 
         total_obj += m.ObjVal
 
+    selected_job = 6
+    candidate_workers = []
+
+    for k in Workers:
+        if Dur[k - 1][selected_job - 1] > 0:
+            cert = int(SkillOK[k - 1][selected_job - 1]) * 100
+            duration = float(Dur[k - 1][selected_job - 1])
+            cost = float(Cost[k - 1][selected_job - 1])
+            ert = ER[selected_job]
+            repeat_count = used_worker_job[k, selected_job]
+
+            repeat_label = "Düşük" if repeat_count <= 1 else "Orta" if repeat_count <= 2 else "Yüksek"
+
+            score = (
+                0.30 * (cert / 100)
+                + 0.25 * (1 / max(duration, 1))
+                + 0.20 * (1 / max(cost, 1))
+                + 0.15 * (1 - ert / 100)
+                + 0.10 * (1 / (repeat_count + 1))
+            )
+
+            candidate_workers.append({
+                "worker": f"W{k}",
+                "cert": cert,
+                "ert": ert,
+                "fatigue": round(ert * 0.30 + repeat_count * 5, 2),
+                "cost": round(cost, 2),
+                "duration": round(duration, 2),
+                "repeat": repeat_label,
+                "score": round(score, 3),
+            })
+
+    candidate_workers = sorted(candidate_workers, key=lambda x: x["score"], reverse=True)[:8]
+
+    for i, row in enumerate(candidate_workers, start=1):
+        row["rank"] = i
+
+    best = candidate_workers[0] if candidate_workers else None
+
+    dashboard = {
+        "best_worker": best["worker"] if best else "-",
+        "eligible_workers": sum(1 for k in Workers if int(SkillOK[k - 1][selected_job - 1]) == 1 and Dur[k - 1][selected_job - 1] > 0),
+        "total_workers": WN,
+        "best_duration": best["duration"] if best else "-",
+        "min_ert": best["ert"] if best else "-",
+        "best_score": best["score"] if best else "-",
+        "selected_job": job_names[selected_job],
+        "capacity": Cap[selected_job],
+        "assigned_worker_count": Cap[selected_job],
+        "candidate_workers": candidate_workers,
+    }
+
     return {
         "status": "OPTIMAL",
         "block_count": block_count,
         "cmax": round(global_cmax, 2),
         "objective": round(total_obj, 2),
-        "method": "Rolling Window - Tez Kurallarına Uygun",
+        "method": "Rolling Window - Tekrar Atama Kontrollü",
         "assignments": all_assignments,
+        "dashboard": dashboard,
     }
