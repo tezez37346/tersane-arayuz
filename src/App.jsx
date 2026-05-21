@@ -33,7 +33,6 @@ export default function App() {
       const response = await fetch(
         `https://tersane-arayuz.onrender.com/solve?block_count=${blockCount}&job_id=${selectedJob}&priority=${encodeURIComponent(priorityType)}`
       );
-
       const data = await response.json();
       setResult(data);
       setActivePage("Ana Sayfa");
@@ -233,17 +232,6 @@ export default function App() {
                       <RiskBar h="60%" v="11" label="80-100" />
                     </div>
                   </div>
-
-                  <div style={chartCard}>
-                    <h3>SEÇİLEN İŞ ADIMI BİLGİLERİ</h3>
-                    <Info label="İş Adımı" value={dashboard.selected_job} />
-                    <Info label="Kapasite" value={dashboard.capacity} />
-                    <Info label="Uygun İşçi Sayısı" value={dashboard.eligible_workers} />
-                    <Info label="Atanacak İşçi Sayısı" value={dashboard.assigned_worker_count} />
-                    <div style={infoNote}>
-                      ℹ️ Aynı işçinin aynı iş adımına ardışık bloklarda atanması kısıtlanmıştır.
-                    </div>
-                  </div>
                 </div>
               </>
             )}
@@ -365,15 +353,6 @@ function RiskBar({ h, v, label }) {
   );
 }
 
-function Info({ label, value }) {
-  return (
-    <div style={infoRow}>
-      <span>{label}</span>
-      <b>{value}</b>
-    </div>
-  );
-}
-
 const page = { display: "flex", minHeight: "100vh", background: "#f5f7fb", fontFamily: "Arial" };
 const sidebar = { width: 250, background: "#071a2f", color: "white", padding: 25, position: "sticky", top: 0, height: "100vh" };
 const logo = { fontSize: 30, marginBottom: 35 };
@@ -454,7 +433,7 @@ const td = { padding: 12, border: "1px solid #e2e8f0", textAlign: "center", font
 const bestRow = { background: "#dcfce7", fontWeight: "bold" };
 const bottomGrid = {
   display: "grid",
-  gridTemplateColumns: "1fr 1.15fr 1fr",
+  gridTemplateColumns: "1fr 1fr",
   gap: 18
 };
 const chartCard = {
@@ -470,6 +449,4 @@ const tag = { background: "#ecfdf5", color: "#047857", padding: "10px 14px", bor
 const riskBars = { height: 210, display: "flex", alignItems: "end", justifyContent: "space-around", gap: 10 };
 const riskItem = { display: "flex", flexDirection: "column", alignItems: "center", gap: 8 };
 const riskBar = { width: 48, background: "#22c55e", color: "white", borderRadius: "10px 10px 0 0", display: "flex", alignItems: "start", justifyContent: "center", paddingTop: 8, fontWeight: "bold" };
-const infoRow = { display: "flex", justifyContent: "space-between", borderBottom: "1px solid #e2e8f0", padding: "10px 0" };
-const infoNote = { background: "#eff6ff", color: "#1d4ed8", padding: 14, borderRadius: 12, marginTop: 16 };
 const panel = { background: "white", borderRadius: 16, padding: 24, boxShadow: "0 4px 14px rgba(0,0,0,.08)" };
