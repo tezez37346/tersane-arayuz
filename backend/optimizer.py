@@ -103,8 +103,6 @@ def solve_shipyard_model(block_count: int = 35, priority="Dengeli Amaç Fonksiyo
         for k in Workers:
             m.addConstr(quicksum(x[k, j] for j in Jobs if (k, j) in x) == 1)
 
-        # Aynı işçi aynı işi ardışık bloklarda tekrar almasın.
-        # Eğer çok dar uygunluk varsa model infeasible olmasın diye ceza ile desteklenir.
         for k, j in x:
             if last_worker_job[k] == j:
                 m.addConstr(x[k, j] <= 0)
@@ -154,56 +152,16 @@ def solve_shipyard_model(block_count: int = 35, priority="Dengeli Amaç Fonksiyo
         Z_cert = quicksum(qcert[k, j] for k, j in qcert)
         Z_repeat = quicksum(repeat_penalty[k, j] for k, j in repeat_penalty)
 
-        
-
-                # =====================================================
-        # ÖNCELİK TİPİNE GÖRE AĞIRLIK DEĞİŞİMİ
-        # =====================================================
-
         if priority == "Temin Süresi Öncelikli":
-
-            w_cmax = 1.20
-            w_pref = 0.05
-            w_er = 0.05
-            w_cert = 2.00
-            w_repeat = 0.50
-
+            w_cmax, w_pref, w_er, w_cert, w_repeat = 1.20, 0.05, 0.05, 2.00, 0.50
         elif priority == "Ergonomi Öncelikli":
-
-            w_cmax = 0.20
-            w_pref = 0.05
-            w_er = 1.20
-            w_cert = 2.00
-            w_repeat = 0.50
-
+            w_cmax, w_pref, w_er, w_cert, w_repeat = 0.20, 0.05, 1.20, 2.00, 0.50
         elif priority == "Sertifika Öncelikli":
-
-            w_cmax = 0.20
-            w_pref = 0.05
-            w_er = 0.10
-            w_cert = 12.00
-            w_repeat = 0.50
-
+            w_cmax, w_pref, w_er, w_cert, w_repeat = 0.20, 0.05, 0.10, 12.00, 0.50
         elif priority == "İş Yükü Dengesi Öncelikli":
-
-            w_cmax = 0.25
-            w_pref = 0.05
-            w_er = 0.15
-            w_cert = 2.00
-            w_repeat = 8.00
-
+            w_cmax, w_pref, w_er, w_cert, w_repeat = 0.25, 0.05, 0.15, 2.00, 8.00
         else:
-
-            # Dengeli yapı
-            w_cmax = 0.55
-            w_pref = 0.20
-            w_er = 0.20
-            w_cert = 5.00
-            w_repeat = 2.00
-
-        # =====================================================
-        # AMAÇ FONKSİYONU
-        # =====================================================
+            w_cmax, w_pref, w_er, w_cert, w_repeat = 0.55, 0.20, 0.20, 5.00, 2.00
 
         m.setObjective(
             w_cmax * Cmax
@@ -222,11 +180,13 @@ def solve_shipyard_model(block_count: int = 35, priority="Dengeli Amaç Fonksiyo
                 "block_count": block_count,
                 "cmax": None,
                 "assignments": [],
+                "dashboard": None,
                 "message": f"{block}. blok çözülemedi."
             }
 
         for j in Jobs:
             selected = []
+
             for k in Workers:
                 if (k, j) in x and x[k, j].X > 0.5:
                     selected.append(f"W{k}")
@@ -252,50 +212,58 @@ def solve_shipyard_model(block_count: int = 35, priority="Dengeli Amaç Fonksiyo
         total_obj += m.ObjVal
 
     selected_job = job_id
+
+    selected_assignment = next(
+        (a for a in all_assignments if a["block"] == 1 and a["job_id"] == selected_job),
+        None
+    )
+
+    assigned_workers = selected_assignment["workers"] if selected_assignment else []
+
     candidate_workers = []
 
-    for k in Workers:
-        if Dur[k - 1][selected_job - 1] > 0:
-            cert = int(SkillOK[k - 1][selected_job - 1]) * 100
-            duration = float(Dur[k - 1][selected_job - 1])
-            cost = float(Cost[k - 1][selected_job - 1])
-            ert = ER[selected_job]
-            repeat_count = used_worker_job[k, selected_job]
+    for worker_code in assigned_workers:
+        k = int(worker_code.replace("W", ""))
 
-            repeat_label = "Düşük" if repeat_count <= 1 else "Orta" if repeat_count <= 2 else "Yüksek"
+        cert = int(SkillOK[k - 1][selected_job - 1]) * 100
+        duration = float(Dur[k - 1][selected_job - 1])
+        cost = float(Cost[k - 1][selected_job - 1])
+        ert = ER[selected_job]
+        repeat_count = used_worker_job[k, selected_job]
 
+        repeat_label = "Düşük" if repeat_count <= 1 else "Orta" if repeat_count <= 2 else "Yüksek"
 
-            if priority == "Temin Süresi Öncelikli":
-                a, b, c, d, e = 0.50, 0.15, 0.10, 0.15, 0.10
-            elif priority == "Ergonomi Öncelikli":
-                a, b, c, d, e = 0.15, 0.15, 0.10, 0.50, 0.10
-            elif priority == "Sertifika Öncelikli":
-                a, b, c, d, e = 0.15, 0.50, 0.10, 0.15, 0.10
-            elif priority == "İş Yükü Dengesi Öncelikli":
-                a, b, c, d, e = 0.15, 0.15, 0.45, 0.15, 0.10
-            else:
-                a, b, c, d, e = 0.30, 0.25, 0.15, 0.20, 0.10
+        if priority == "Temin Süresi Öncelikli":
+            a, b, c, d, e = 0.50, 0.15, 0.10, 0.15, 0.10
+        elif priority == "Ergonomi Öncelikli":
+            a, b, c, d, e = 0.15, 0.15, 0.10, 0.50, 0.10
+        elif priority == "Sertifika Öncelikli":
+            a, b, c, d, e = 0.15, 0.50, 0.10, 0.15, 0.10
+        elif priority == "İş Yükü Dengesi Öncelikli":
+            a, b, c, d, e = 0.15, 0.15, 0.10, 0.15, 0.50
+        else:
+            a, b, c, d, e = 0.30, 0.25, 0.15, 0.20, 0.10
 
-            score = (
-                a * (1 / max(duration, 1))
-                + b * (cert / 100)
-                + c * (1 / max(cost, 1))
-                + d * (1 - ert / 100)
-                + e * (1 / (repeat_count + 1))
-            )
+        score = (
+            a * (1 / max(duration, 1))
+            + b * (cert / 100)
+            + c * (1 / max(cost, 1))
+            + d * (1 - ert / 100)
+            + e * (1 / (repeat_count + 1))
+        )
 
-            candidate_workers.append({
-                "worker": f"W{k}",
-                "cert": cert,
-                "ert": ert,
-                "fatigue": round(ert * 0.30 + repeat_count * 5, 2),
-                "cost": round(cost, 2),
-                "duration": round(duration, 2),
-                "repeat": repeat_label,
-                "score": round(score, 3),
-            })
+        candidate_workers.append({
+            "worker": f"W{k}",
+            "cert": cert,
+            "ert": ert,
+            "fatigue": round(ert * 0.30 + repeat_count * 5, 2),
+            "cost": round(cost, 2),
+            "duration": round(duration, 2),
+            "repeat": repeat_label,
+            "score": round(score, 3),
+        })
 
-    candidate_workers = sorted(candidate_workers, key=lambda x: x["score"], reverse=True)[:8]
+    candidate_workers = sorted(candidate_workers, key=lambda x: x["score"], reverse=True)
 
     for i, row in enumerate(candidate_workers, start=1):
         row["rank"] = i
@@ -304,7 +272,11 @@ def solve_shipyard_model(block_count: int = 35, priority="Dengeli Amaç Fonksiyo
 
     dashboard = {
         "best_worker": best["worker"] if best else "-",
-        "eligible_workers": sum(1 for k in Workers if int(SkillOK[k - 1][selected_job - 1]) == 1 and Dur[k - 1][selected_job - 1] > 0),
+        "assigned_workers": assigned_workers,
+        "eligible_workers": sum(
+            1 for k in Workers
+            if int(SkillOK[k - 1][selected_job - 1]) == 1 and Dur[k - 1][selected_job - 1] > 0
+        ),
         "total_workers": WN,
         "best_duration": best["duration"] if best else "-",
         "min_ert": best["ert"] if best else "-",
