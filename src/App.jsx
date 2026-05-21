@@ -403,7 +403,8 @@ const riskBar = {
   alignItems: "start",
   justifyContent: "center",
   paddingTop: "8px",
-  fontWeight: "bold"
+  fontWeight: "bold",
+  transition: "height 1.2s ease"
 };
 
 const smallText = {
@@ -427,4 +428,14 @@ const tag = {
   borderRadius: "999px",
   fontSize: "13px",
   fontWeight: "600"
+};
+const emptyDashboard = {
+  marginTop: "22px",
+  padding: "30px",
+  borderRadius: "16px",
+  background: "#f8fafc",
+  border: "1px dashed #cbd5e1",
+  color: "#64748b",
+  textAlign: "center",
+  fontSize: "15px"
 };
